@@ -14,6 +14,7 @@ const int DECKS_IN_SHOE = 8;
 const int CARDS_PER_DECK = 52;
 const double RESHUFFLE_THRESHOLD = 0.2;
 
+
 int drawCard(mt19937& rng) {
     uniform_int_distribution<int> dist(1, 13);
     int card = dist(rng);
