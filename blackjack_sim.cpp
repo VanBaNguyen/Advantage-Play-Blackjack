@@ -10,6 +10,10 @@ using namespace std;
 
 enum Result { PLAYER_WIN, DEALER_WIN, DRAW };
 
+const int DECKS_IN_SHOE = 8;
+const int CARDS_PER_DECK = 52;
+const double RESHUFFLE_THRESHOLD = 0.2;
+
 int drawCard(mt19937& rng) {
     uniform_int_distribution<int> dist(1, 13);
     int card = dist(rng);
@@ -72,7 +76,7 @@ void simulateGames(int gamesPerThread, int& playerWins, int& dealerWins, int& dr
 
 int main() {
     // 100M (1-10M should be fine)
-    const int totalGames = 100000000;
+    const int totalGames = 10000000;
 
     //all cores
     const int numThreads = thread::hardware_concurrency();
