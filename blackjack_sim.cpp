@@ -113,9 +113,20 @@ Result playGame(mt19937& rng, int& surrenderCounter) {
 
     int playerTotal = handValue(player);
 
+    // Check for player blackjack
+    if (player.size() == 2 && playerTotal == 21) {
+        int dealerTotal = handValue(dealer);
+        if (dealer.size() == 2 && dealerTotal == 21) {
+            return DRAW;
+        }
+        return PLAYER_WIN;
+    }
+
+
     // Late surrender strategy
     if ((playerTotal == 16 && (dealerUpcard == 9 || dealerUpcard == 10 || dealerUpcard == 11)) ||
-        (playerTotal == 15 && dealerUpcard == 10)) {
+        (playerTotal == 15 && (dealerUpcard == 10 || dealerUpcard == 11)) ||
+        (playerTotal == 17 && dealerUpcard == 11)) {
         surrenderCounter++;
         return DEALER_WIN;  // surrender counts as a half-loss (still tracked under dealerWins)
     }
