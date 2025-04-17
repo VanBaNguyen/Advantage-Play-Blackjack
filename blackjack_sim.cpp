@@ -69,19 +69,10 @@ private:
         return total;
     }
 
-
-int drawCard(mt19937& rng) {
-    uniform_int_distribution<int> dist(1, 13);
-    int card = dist(rng);
-    return (card > 10) ? 10 : card;
-}
-
 // Simulate one game of blackjack
-Result playGame(mt19937& rng, int& surrenderCounter) {
+Result playGame(Shoe& shoe, int& surrenderCounter) {
     auto draw = [&]() {
-        uniform_int_distribution<int> dist(1, 13);
-        int card = dist(rng);
-        return (card > 10) ? 10 : card;
+        return shoe.draw();
     };
 
     vector<int> player = { draw(), draw() };
@@ -115,10 +106,6 @@ Result playGame(mt19937& rng, int& surrenderCounter) {
 
     // Check for player blackjack
     if (player.size() == 2 && playerTotal == 21) {
-        int dealerTotal = handValue(dealer);
-        if (dealer.size() == 2 && dealerTotal == 21) {
-            return DRAW;
-        }
         return PLAYER_WIN;
     }
 
@@ -164,14 +151,18 @@ Result playGame(mt19937& rng, int& surrenderCounter) {
     return DRAW;
 }
 
+//
 void simulateGames(int gamesPerThread, int& playerWins, int& dealerWins, int& draws, int& surrenders) {
 
     mt19937 rng(chrono::system_clock::now().time_since_epoch().count() + std::hash<thread::id>{}(this_thread::get_id()));
 
     int localPlayerWins = 0, localDealerWins = 0, localDraws = 0, localSurrenders = 0;
 
+    // Shoe per thread
+    Shoe shoe(rng);
+
     for (int i = 0; i < gamesPerThread; ++i) {
-        Result result = playGame(rng, localSurrenders);
+        Result result = playGame(shoe, localSurrenders);
         if (result == PLAYER_WIN) localPlayerWins++;
         else if (result == DEALER_WIN) localDealerWins++;
         else localDraws++;
@@ -185,12 +176,13 @@ void simulateGames(int gamesPerThread, int& playerWins, int& dealerWins, int& dr
 
 int main() {
     // 100M (1-10M should be fine)
-    const int totalGames = 10000000;
+    const int totalGames = 1000000;
 
     //half cores
     const int numThreads = (thread::hardware_concurrency()) / 2;
     const int gamesPerThread = totalGames / numThreads;
 
+    // vectors
     vector<thread> threads;
     vector<int> playerWins(numThreads);
     vector<int> dealerWins(numThreads);
@@ -201,6 +193,7 @@ int main() {
         threads.emplace_back(simulateGames, gamesPerThread, ref(playerWins[i]), ref(dealerWins[i]), ref(draws[i]),  ref(surrenders[i]));
     }
 
+    // wait for all threads to be done
     for (auto& t : threads) {
         t.join();
     }

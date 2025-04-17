@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+blackjack_sim
+/build/
