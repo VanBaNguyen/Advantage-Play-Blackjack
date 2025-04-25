@@ -144,16 +144,12 @@ bool shouldDoubleDown(const vector<int>& hand, int dealerUpcard) {
     }
 }
 
-// Simulate one game of blackjack
-Result playGame(Shoe& shoe, int& surrenderCounter) {
+// Simulate ~one game of blackjack
+void playGame(Shoe& shoe, int& playerWins, int& dealerWins, int& draws, int& surrenderCounter, int& splitCounter, int& doubleCounter) {
+    // Lambda helper functions
     auto draw = [&]() {
         return shoe.draw();
     };
-
-    vector<int> player = { draw(), draw() };
-    vector<int> dealer = { draw(), draw() };  // dealer[0] is visible
-
-    int dealerUpcard = dealer[0] == 1 ? 11 : dealer[0]; // treat ace as 11 for lookup
 
     auto isSoft = [](const vector<int>& hand) {
         int total = 0, aces = 0;
@@ -177,81 +173,126 @@ Result playGame(Shoe& shoe, int& surrenderCounter) {
         return total;
     };
 
+    vector<int> player = { draw(), draw() };
+    vector<int> dealer = { draw(), draw() };  // dealer[0] is visible
+
+    vector<vector<int>> playerHands;
+
+    int dealerUpcard = dealer[0] == 1 ? 11 : dealer[0]; // treat ace as 11 for lookup
+
+    // Check for split opportunity
+    if (player[0] == player[1] && shouldSplit(player[0], dealerUpcard)) {
+        // One-time split into two hands
+        vector<int> hand1 = { player[0], draw() };
+        vector<int> hand2 = { player[1], draw() };
+        playerHands.push_back(hand1);
+        playerHands.push_back(hand2);
+
+        // Increment # of Splits
+        splitCounter++;
+    } else {
+        playerHands.push_back(player);
+    }
+
+    // To track outcomes across all player hands
+    int winCount = 0, lossCount = 0, drawCount = 0;
+
     int playerTotal = handValue(player);
 
     // Check for player blackjack
     if (player.size() == 2 && playerTotal == 21) {
-        return PLAYER_WIN;
+        playerWins++;;
     }
-
 
     // Late surrender strategy
     if ((playerTotal == 16 && (dealerUpcard == 9 || dealerUpcard == 10 || dealerUpcard == 11)) ||
         (playerTotal == 15 && (dealerUpcard == 10 || dealerUpcard == 11)) ||
         (playerTotal == 17 && dealerUpcard == 11)) {
         surrenderCounter++;
-        return DEALER_WIN;  // surrender counts as a half-loss (still tracked under dealerWins)
+        dealerWins++;
+        return;  // surrender counts as a half-loss (still tracked under dealerWins)
     }
+    
+    // Play each hand individually
+    for (auto& hand : playerHands) {
+        bool doubled = false;
 
-    // Player turn
-    while (true) {
-        playerTotal = handValue(player);
-        bool soft = isSoft(player);
+        // Check for double down (only on initial 2 cards)
+        if (hand.size() == 2 && shouldDoubleDown(hand, dealerUpcard)) {
+            hand.push_back(draw());
+            doubled = true;
 
-        if (!soft) { // hard totals
-            if (playerTotal >= 17) break;
-            if (playerTotal >= 13 && playerTotal <= 16 && dealerUpcard <= 6) break;
-            if (playerTotal == 12 && dealerUpcard >= 4 && dealerUpcard <= 6) break;
-            if (playerTotal <= 11) player.push_back(draw());
-            else player.push_back(draw());
-        } else { // soft totals
-            if (playerTotal >= 19) break;
-            if (playerTotal == 18 && dealerUpcard <= 8) break;
-            player.push_back(draw());
+            // Increment # of Doubles
+            doubleCounter++;
+        }
+
+        if (!doubled) {
+            while (true) {
+                playerTotal = handValue(hand);
+                bool soft = isSoft(hand);
+
+                if (!soft) { // hard totals
+                    if (playerTotal >= 17) break;
+                    if (playerTotal >= 13 && playerTotal <= 16 && dealerUpcard <= 6) break;
+                    if (playerTotal == 12 && dealerUpcard >= 4 && dealerUpcard <= 6) break;
+                    if (playerTotal <= 11) hand.push_back(draw());
+                    else hand.push_back(draw());
+                } else { // soft totals
+                    if (playerTotal >= 19) break;
+                    if (playerTotal == 18 && dealerUpcard <= 8) break;
+                    hand.push_back(draw());
+                }
+            }
         }
     }
-
-    playerTotal = handValue(player);
-    if (playerTotal > 21) return DEALER_WIN;
 
     // Dealer turn
     while (handValue(dealer) < 17) {
         dealer.push_back(draw());
     }
-
     int dealerTotal = handValue(dealer);
-    if (dealerTotal > 21) return PLAYER_WIN;
-    if (playerTotal > dealerTotal) return PLAYER_WIN;
-    if (dealerTotal > playerTotal) return DEALER_WIN;
-    return DRAW;
+
+    // eval results
+    for (auto& hand : playerHands) {
+        int total = handValue(hand);
+
+        if (total > 21) {
+            dealerWins++;
+        } else if (dealerTotal > 21 || total > dealerTotal) {
+            playerWins++;
+        } else if (dealerTotal > total) {
+            dealerWins++;
+        } else {
+            draws++;
+        }
+    }
 }
 
 //
-void simulateGames(int gamesPerThread, int& playerWins, int& dealerWins, int& draws, int& surrenders) {
+void simulateGames(int gamesPerThread, int& playerWins, int& dealerWins, int& draws, int& surrenders, int& splits, int& doubles) {
 
     mt19937 rng(chrono::system_clock::now().time_since_epoch().count() + std::hash<thread::id>{}(this_thread::get_id()));
 
-    int localPlayerWins = 0, localDealerWins = 0, localDraws = 0, localSurrenders = 0;
+    int localPlayerWins = 0, localDealerWins = 0, localDraws = 0, localSurrenders = 0, localSplits = 0, localDoubles = 0;
 
     // Shoe per thread
     Shoe shoe(rng);
 
     for (int i = 0; i < gamesPerThread; ++i) {
-        Result result = playGame(shoe, localSurrenders);
-        if (result == PLAYER_WIN) localPlayerWins++;
-        else if (result == DEALER_WIN) localDealerWins++;
-        else localDraws++;
+        playGame(shoe, localPlayerWins, localDealerWins, localDraws, localSurrenders, localSplits, localDoubles);\
     }
 
     playerWins = localPlayerWins;
     dealerWins = localDealerWins;
     draws = localDraws;
     surrenders = localSurrenders;
+    splits = localSplits;
+    doubles = localDoubles;
 }
 
 int main() {
     // 100M (1-10M should be fine)
-    const int totalGames = 1000000;
+    const int totalGames = 100000;
 
     //half cores
     const int numThreads = (thread::hardware_concurrency()) / 2;
@@ -263,9 +304,11 @@ int main() {
     vector<int> dealerWins(numThreads);
     vector<int> draws(numThreads);
     vector<int> surrenders(numThreads);
+    vector<int> splits(numThreads);
+    vector<int> doubles(numThreads);
 
     for (int i = 0; i < numThreads; ++i) {
-        threads.emplace_back(simulateGames, gamesPerThread, ref(playerWins[i]), ref(dealerWins[i]), ref(draws[i]),  ref(surrenders[i]));
+        threads.emplace_back(simulateGames, gamesPerThread, ref(playerWins[i]), ref(dealerWins[i]), ref(draws[i]), ref(surrenders[i]), ref(splits[i]), ref(doubles[i]));
     }
 
     // wait for all threads to be done
@@ -274,19 +317,26 @@ int main() {
     }
 
     // Merge results
-    int totalPlayerWins = 0, totalDealerWins = 0, totalDraws = 0, totalSurrenders = 0;
+    int totalPlayerWins = 0, totalDealerWins = 0, totalDraws = 0, totalSurrenders = 0, totalSplits = 0, totalDoubles = 0;
     for (int i = 0; i < numThreads; ++i) {
         totalPlayerWins += playerWins[i];
         totalDealerWins += dealerWins[i];
         totalDraws += draws[i];
         totalSurrenders += surrenders[i];
+        totalSplits += splits[i];
+        totalDoubles += doubles[i];
     }
 
-    cout << "Total games: " << totalGames << endl;
-    cout << "Player wins: " << totalPlayerWins << endl;
-    cout << "Dealer wins: " << totalDealerWins << endl;
-    cout << "Draws:       " << totalDraws << endl;
+    cout << endl;
+    cout << "Total games:  " << totalGames << endl;
+    cout << "Player wins:  " << totalPlayerWins << endl;
+    cout << "Dealer wins:  " << totalDealerWins << endl;
+    cout << "Draws:        " << totalDraws << endl;
+    cout << endl;
     cout << "Surrenders:   " << totalSurrenders << endl;
+    cout << "Splits:       " << totalSplits << endl;
+    cout << "Doubles:      " << totalDoubles << endl;
+    cout << endl;
 
     return 0;
 }
