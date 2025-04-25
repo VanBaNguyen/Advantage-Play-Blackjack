@@ -69,6 +69,81 @@ private:
         return total;
     }
 
+// Given a pair + upcard, split or no split
+bool shouldSplit(int pairValue, int dealerUpcard) {
+
+    if (dealerUpcard == 1) dealerUpcard = 11;
+
+    switch (pairValue) {
+        case 1: // Aces
+            return true;
+        case 2:
+        case 3:
+            return dealerUpcard >= 2 && dealerUpcard <= 7;
+        case 4:
+            return dealerUpcard == 5 || dealerUpcard == 6;
+        // who splits 5s??
+        case 5:
+            return false;
+        case 6:
+            return dealerUpcard >= 2 && dealerUpcard <= 6;
+        case 7:
+            return dealerUpcard <= 7;
+        case 8:
+            return true; // Always split 8s
+        case 9:
+            return (dealerUpcard <= 6 || dealerUpcard == 8 || dealerUpcard == 9);
+        case 10:
+            return false;
+        default:
+            return false;
+    }
+}
+
+bool shouldDoubleDown(const vector<int>& hand, int dealerUpcard) {
+    if (dealerUpcard == 1) dealerUpcard = 11;
+
+    int total = 0, aces = 0;
+    for (int card : hand) {
+        total += card;
+        if (card == 1) aces++;
+    }
+
+    bool isSoft = (aces > 0 && total + 10 <= 21);
+    int value = total;
+    if (isSoft) value += 10;
+
+    if (isSoft) {
+        switch (value) {
+            case 13:
+            case 14:
+                return dealerUpcard == 5 || dealerUpcard == 6;
+            case 15:
+            case 16:
+                return dealerUpcard >= 4 && dealerUpcard <= 6;
+            case 17:
+                return dealerUpcard >= 3 && dealerUpcard <= 6;
+            case 18:
+                return dealerUpcard >= 2 && dealerUpcard <= 6;
+            case 19:
+                return dealerUpcard == 6;
+            default:
+                return false;
+        }
+    } else {
+        switch (value) {
+            case 9:
+                return dealerUpcard >= 3 && dealerUpcard <= 6;
+            case 10:
+                return dealerUpcard >= 2 && dealerUpcard <= 9;
+            case 11:
+                return true;
+            default:
+                return false;
+        }
+    }
+}
+
 // Simulate one game of blackjack
 Result playGame(Shoe& shoe, int& surrenderCounter) {
     auto draw = [&]() {
@@ -207,13 +282,11 @@ int main() {
         totalSurrenders += surrenders[i];
     }
 
-
     cout << "Total games: " << totalGames << endl;
     cout << "Player wins: " << totalPlayerWins << endl;
     cout << "Dealer wins: " << totalDealerWins << endl;
     cout << "Draws:       " << totalDraws << endl;
     cout << "Surrenders:   " << totalSurrenders << endl;
-
 
     return 0;
 }
