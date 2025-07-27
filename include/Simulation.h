@@ -1,4 +1,6 @@
 #pragma once
+#include <functional> // <-- THIS LINE IS REQUIRED!
+
 void simulateGames(
     int gamesPerThread,
     int& playerWins,
@@ -6,5 +8,8 @@ void simulateGames(
     int& draws,
     int& surrenders,
     int& splits,
-    int& doubles
+    int& doubles,
+    double& finalBankroll,
+    int betUnit,
+    std::function<int(double)> betSizing
 );

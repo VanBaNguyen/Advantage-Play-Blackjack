@@ -10,5 +10,8 @@ void playGame(
     int& draws,
     int& surrenderCounter,
     int& splitCounter,
-    int& doubleCounter
+    int& doubleCounter,
+    double& bankroll,
+    int betUnit,
+    std::function<int(double)> betSizing
 );
