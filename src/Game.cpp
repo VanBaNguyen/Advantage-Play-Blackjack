@@ -9,10 +9,18 @@ void playGame(
     int& draws,
     int& surrenderCounter,
     int& splitCounter,
-    int& doubleCounter
+    int& doubleCounter,
+    double& bankroll,
+    int betUnit,
+    std::function<int(double)> betSizing
 ) {
+    // Determine bet for this round
+    double trueCount = shoe.getTrueCount();
+    int unitsToBet = betSizing(trueCount);
+    int bet = std::min(betUnit * unitsToBet, static_cast<int>(bankroll));
+    if (bet <= 0) return;
+
     auto drawCard = [&]() { return shoe.draw(); };
-    // use our evaluator / strategy helpers:
     using std::vector;
 
     vector<int> player = { drawCard(), drawCard() };
@@ -31,8 +39,9 @@ void playGame(
 
     int playerTotal = computeHandValue(player);
     // blackjack check
-    if (player.size()==2 && playerTotal==21) {
+    if (player.size() == 2 && playerTotal == 21) {
         ++playerWins;
+        bankroll += 1.5 * bet;
         return;
     }
     // surrender?
@@ -41,6 +50,8 @@ void playGame(
         (playerTotal==17 && dealerUp==11)) {
         ++surrenderCounter;
         ++dealerWins;
+        // Normally, you lose half your bet on surrender:
+        bankroll -= 0.5 * bet;
         return;
     }
 
@@ -74,12 +85,26 @@ void playGame(
         dealer.push_back(drawCard());
 
     int dealerTotal = computeHandValue(dealer);
-    // final compare
-    for (auto& h : hands) {
-        int v = computeHandValue(h);
-        if (v>21)           ++dealerWins;
-        else if (dealerTotal>21 || v>dealerTotal) ++playerWins;
-        else if (dealerTotal>v)  ++dealerWins;
-        else                   ++draws;
+
+    // For each hand played (splits or not), adjust bankroll **for each**
+for (auto& h : hands) {
+    int v = computeHandValue(h);
+    int handBet = bet; // for splits, each hand should be a full bet
+    bool didDouble = (h.size() == 3 && shouldDoubleDown(h, dealerUp)); // crude, but works for 1-card double
+    if (didDouble) handBet *= 2;
+
+    if (v > 21) {
+        ++dealerWins;
+        bankroll -= handBet;
+    } else if (dealerTotal > 21 || v > dealerTotal) {
+        ++playerWins;
+        bankroll += handBet;
+    } else if (dealerTotal > v) {
+        ++dealerWins;
+        bankroll -= handBet;
+    } else {
+        ++draws;
+        // Push: bankroll unchanged
     }
+}
 }
