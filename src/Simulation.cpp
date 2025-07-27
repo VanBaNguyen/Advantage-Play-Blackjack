@@ -12,8 +12,12 @@ void simulateGames(
     int& draws,
     int& surrenders,
     int& splits,
-    int& doubles
+    int& doubles,
+    double& finalBankroll,      // new
+    int betUnit,
+    std::function<int(double)> betSizing
 ) {
+    double bankroll = 1000.0;
     // seed per-thread RNG
     auto seed = std::chrono::system_clock::now().time_since_epoch().count()
                 + std::hash<std::thread::id>{}(std::this_thread::get_id());
@@ -23,7 +27,7 @@ void simulateGames(
     Shoe shoe(rng);
 
     for (int i = 0; i < gamesPerThread; ++i) {
-        playGame(shoe, pw, dw, dr, su, sp, db);
+        playGame(shoe, pw, dw, dr, su, sp, db, bankroll, betUnit, betSizing);
     }
 
     playerWins  = pw;
@@ -32,4 +36,5 @@ void simulateGames(
     surrenders  = su;
     splits      = sp;
     doubles     = db;
+    finalBankroll = bankroll;
 }
