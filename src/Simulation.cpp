@@ -4,6 +4,7 @@
 #include <random>
 #include <chrono>
 #include <functional>
+#include <iostream>
 
 void simulateGames(
     int gamesPerThread,

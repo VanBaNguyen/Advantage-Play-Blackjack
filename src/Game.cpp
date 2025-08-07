@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "HandEval.h"
 #include "Strategy.h"
+#include <iostream>
 
 void playGame(
     Shoe& shoe,
@@ -14,6 +15,9 @@ void playGame(
     int betUnit,
     std::function<int(double)> betSizing
 ) {
+    // Reshuffle only between rounds if we've reached the cut card
+    shoe.shuffleIfNeededForNewRound();
+
     // Determine bet for this round
     double trueCount = shoe.getTrueCount();
     int unitsToBet = betSizing(trueCount);
@@ -28,13 +32,17 @@ void playGame(
     int dealerUp = (dealer[0] == 1 ? 11 : dealer[0]);
 
     vector<vector<int>> hands;
+    std::vector<bool> handDoubled; // track which split hand doubled
     // split?
     if (player[0]==player[1] && shouldSplit(player[0], dealerUp)) {
         hands.push_back({player[0], drawCard()});
         hands.push_back({player[1], drawCard()});
+        handDoubled.push_back(false);
+        handDoubled.push_back(false);
         ++splitCounter;
     } else {
         hands.push_back(player);
+        handDoubled.push_back(false);
     }
 
     int playerTotal = computeHandValue(player);
@@ -56,12 +64,14 @@ void playGame(
     }
 
     // each hand: maybe double, maybe hit/stand
-    for (auto& h : hands) {
+    for (size_t i = 0; i < hands.size(); ++i) {
+        auto& h = hands[i];
         bool didDouble = false;
         if (h.size()==2 && shouldDoubleDown(h, dealerUp)) {
             h.push_back(drawCard());
             ++doubleCounter;
             didDouble = true;
+            handDoubled[i] = true;
         }
         if (!didDouble) {
             while (true) {
@@ -86,25 +96,152 @@ void playGame(
 
     int dealerTotal = computeHandValue(dealer);
 
-    // For each hand played (splits or not), adjust bankroll **for each**
-for (auto& h : hands) {
-    int v = computeHandValue(h);
-    int handBet = bet; // for splits, each hand should be a full bet
-    bool didDouble = (h.size() == 3 && shouldDoubleDown(h, dealerUp)); // crude, but works for 1-card double
-    if (didDouble) handBet *= 2;
+    // For each hand played (splits or not), adjust bankroll per hand
+    for (size_t i = 0; i < hands.size(); ++i) {
+        auto& h = hands[i];
+        int v = computeHandValue(h);
+        int handBet = bet; // for splits, each hand should be a full bet
+        if (handDoubled[i]) handBet *= 2;
 
-    if (v > 21) {
-        ++dealerWins;
-        bankroll -= handBet;
-    } else if (dealerTotal > 21 || v > dealerTotal) {
-        ++playerWins;
-        bankroll += handBet;
-    } else if (dealerTotal > v) {
-        ++dealerWins;
-        bankroll -= handBet;
-    } else {
-        ++draws;
-        // Push: bankroll unchanged
+        if (v > 21) {
+            ++dealerWins;
+            bankroll -= handBet;
+        } else if (dealerTotal > 21 || v > dealerTotal) {
+            ++playerWins;
+            bankroll += handBet;
+        } else if (dealerTotal > v) {
+            ++dealerWins;
+            bankroll -= handBet;
+        } else {
+            ++draws;
+            // Push: bankroll unchanged
+        }
     }
 }
+
+void playGameTraced(
+    Shoe& shoe,
+    double& bankroll,
+    int betUnit,
+    std::function<int(double)> betSizing
+) {
+    using std::cout; using std::endl; using std::vector;
+    shoe.shuffleIfNeededForNewRound();
+
+    double trueCount = shoe.getTrueCount();
+    int unitsToBet = betSizing(trueCount);
+    int bet = std::min(betUnit * unitsToBet, static_cast<int>(bankroll));
+    if (bet <= 0) {
+        cout << "Insufficient bankroll to bet. Bankroll: $" << bankroll << endl;
+        return;
+    }
+
+    auto drawCard = [&]() { return shoe.draw(); };
+    auto cardStr = [](int c){ return c==1? std::string("A"): (c==10? std::string("T"): std::to_string(c)); };
+
+    vector<int> player = { drawCard(), drawCard() };
+    vector<int> dealer = { drawCard(), drawCard() };
+    int dealerUp = (dealer[0] == 1 ? 11 : dealer[0]);
+
+    cout << "Bet: $" << bet << "  True Count: " << trueCount
+         << "  Running Count: " << shoe.getRunningCount()
+         << "  Cards Remaining: " << shoe.getRemainingCards() << endl;
+    cout << "Player: [" << cardStr(player[0]) << ", " << cardStr(player[1]) << "] (" << computeHandValue(player) << ")" << endl;
+    cout << "Dealer: [" << cardStr(dealer[0]) << ", ?]" << endl;
+
+    vector<vector<int>> hands;
+    std::vector<bool> handDoubled;
+    if (player[0]==player[1] && shouldSplit(player[0], dealerUp)) {
+        hands.push_back({player[0], drawCard()});
+        hands.push_back({player[1], drawCard()});
+        handDoubled.push_back(false);
+        handDoubled.push_back(false);
+        cout << "Action: Split" << endl;
+    } else {
+        hands.push_back(player);
+        handDoubled.push_back(false);
+    }
+
+    int playerTotal = computeHandValue(player);
+    if (player.size() == 2 && playerTotal == 21) {
+        cout << "Player Blackjack! Payout +$" << 1.5 * bet << endl;
+        bankroll += 1.5 * bet;
+        return;
+    }
+
+    if ((playerTotal==16 && (dealerUp>=9)) ||
+        (playerTotal==15 && (dealerUp>=10)) ||
+        (playerTotal==17 && dealerUp==11)) {
+        cout << "Action: Surrender (-$" << (0.5 * bet) << ")" << endl;
+        bankroll -= 0.5 * bet;
+        return;
+    }
+
+    for (size_t i = 0; i < hands.size(); ++i) {
+        auto& h = hands[i];
+        bool didDouble = false;
+        if (h.size()==2 && shouldDoubleDown(h, dealerUp)) {
+            cout << "Hand " << (i+1) << ": Double" << endl;
+            h.push_back(drawCard());
+            didDouble = true;
+            handDoubled[i] = true;
+        }
+        if (!didDouble) {
+            while (true) {
+                int val = computeHandValue(h);
+                bool soft = isSoft(h);
+                if (!soft) {
+                    if (val>=17 || (val>=13&&val<=16&&dealerUp<=6) ||
+                        (val==12&&dealerUp>=4&&dealerUp<=6))
+                        break;
+                } else {
+                    if (val>=19 || (val==18&&dealerUp<=8))
+                        break;
+                }
+                h.push_back(drawCard());
+                cout << "Hand " << (i+1) << ": Hit -> total " << computeHandValue(h) << endl;
+            }
+            cout << "Hand " << (i+1) << ": Stand at " << computeHandValue(h) << (isSoft(h)?" (soft)":"") << endl;
+        }
+    }
+
+    while (computeHandValue(dealer) < 17) {
+        dealer.push_back(drawCard());
+    }
+
+    auto showHand = [&](const std::vector<int>& h){
+        for (size_t i=0;i<h.size();++i){
+            cout << (i?", ":"[") << cardStr(h[i]);
+        }
+        cout << "] (" << computeHandValue(h) << ")";
+    };
+
+    cout << "Dealer final: "; showHand(dealer); cout << endl;
+
+    int dealerTotal = computeHandValue(dealer);
+    for (size_t i = 0; i < hands.size(); ++i) {
+        auto& h = hands[i];
+        int v = computeHandValue(h);
+        int handBet = bet;
+        if (handDoubled[i]) handBet *= 2;
+
+        cout << "Resolve Hand " << (i+1) << ": "; showHand(h); cout << " vs Dealer " << dealerTotal;
+        if (v > 21) {
+            cout << " -> Lose (-$" << handBet << ")" << endl;
+            bankroll -= handBet;
+        } else if (dealerTotal > 21 || v > dealerTotal) {
+            cout << " -> Win (+$" << handBet << ")" << endl;
+            bankroll += handBet;
+        } else if (dealerTotal > v) {
+            cout << " -> Lose (-$" << handBet << ")" << endl;
+            bankroll -= handBet;
+        } else {
+            cout << " -> Push" << endl;
+        }
+    }
+    cout << "End of round: Bankroll $" << bankroll
+         << ", Running Count " << shoe.getRunningCount()
+         << ", True Count " << shoe.getTrueCount()
+         << ", Cards Remaining " << shoe.getRemainingCards()
+         << std::endl;
 }

@@ -63,7 +63,7 @@
 
 int main() {
     const int totalGames    = 10000;
-    const int startingBankroll = 1000;
+    const int startingBankroll = 10000;
     const int betUnit = 10;
 
     int playerWins = 0, dealerWins = 0, draws = 0;
