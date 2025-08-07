@@ -22,7 +22,15 @@ void playGame(
     double trueCount = shoe.getTrueCount();
     int unitsToBet = betSizing(trueCount);
     int bet = std::min(betUnit * unitsToBet, static_cast<int>(bankroll));
-    if (bet <= 0) return;
+    if (unitsToBet <= 0 || bet <= 0) {
+        // Sit out: consume a round without betting
+        auto drawCard = [&]() { return shoe.draw(); };
+        std::vector<int> player = { drawCard(), drawCard() };
+        std::vector<int> dealer = { drawCard(), drawCard() };
+        while (computeHandValue(player) < 17) player.push_back(drawCard());
+        while (computeHandValue(dealer) < 17) dealer.push_back(drawCard());
+        return;
+    }
 
     auto drawCard = [&]() { return shoe.draw(); };
     using std::vector;
@@ -150,8 +158,17 @@ void playGameTraced(
     double trueCount = shoe.getTrueCount();
     int unitsToBet = betSizing(trueCount);
     int bet = std::min(betUnit * unitsToBet, static_cast<int>(bankroll));
-    if (bet <= 0) {
-        cout << "Insufficient bankroll to bet. Bankroll: $" << bankroll << endl;
+    if (unitsToBet <= 0 || bet <= 0) {
+        cout << "Sit out (no bet). TC=" << trueCount << ", RC=" << shoe.getRunningCount()
+             << ", Cards Remaining=" << shoe.getRemainingCards() << endl;
+        auto drawCard = [&]() { return shoe.draw(); };
+        std::vector<int> player = { drawCard(), drawCard() };
+        std::vector<int> dealer = { drawCard(), drawCard() };
+        while (computeHandValue(player) < 17) player.push_back(drawCard());
+        while (computeHandValue(dealer) < 17) dealer.push_back(drawCard());
+        cout << "Cards consumed during sit-out. RC=" << shoe.getRunningCount()
+             << ", TC=" << shoe.getTrueCount()
+             << ", Remaining=" << shoe.getRemainingCards() << endl;
         return;
     }
 

@@ -13,11 +13,12 @@ void simulateGames(
     int& surrenders,
     int& splits,
     int& doubles,
-    double& finalBankroll,      // new
+    double startingBankroll,
+    double& finalBankroll,
     int betUnit,
     std::function<int(double)> betSizing
 ) {
-    double bankroll = 1000.0;
+    double bankroll = startingBankroll;
     auto seed = std::chrono::system_clock::now().time_since_epoch().count()
                 + std::hash<std::thread::id>{}(std::this_thread::get_id());
     std::mt19937 rng(seed);

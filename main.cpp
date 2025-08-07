@@ -70,15 +70,22 @@ int main() {
     int surrenders = 0, splits = 0, doubles = 0;
     double finalBankroll = startingBankroll;
 
-    // Betting function (true count to units):
+    // Configurable units-per-true-count. Return 0 to sit out.
     auto betSizing = [](double tc) {
-        if (tc < 1.0) return 1;
-        else return static_cast<int>(tc);
+        int itc = static_cast<int>(std::floor(tc));
+        if (itc <= 0) return 0;    // sit out at TC <= 0
+        if (itc == 1) return 1;    // TC 1 -> 1 unit
+        if (itc == 2) return 2;    // TC 2 -> 2 units
+        if (itc == 3) return 4;    // TC 3 -> 4 units
+        if (itc == 4) return 6;    // TC 4 -> 6 units
+        if (itc >= 5) return 8;    // TC 5+ -> 8 units (example)
+        return 0;
     };
 
     simulateGames(totalGames,
                   playerWins, dealerWins, draws,
                   surrenders, splits, doubles,
+                  startingBankroll,
                   finalBankroll, betUnit, betSizing);
 
     std::cout << "\nTotal games:  " << totalGames

@@ -9,6 +9,7 @@ void simulateGames(
     int& surrenders,
     int& splits,
     int& doubles,
+    double startingBankroll,
     double& finalBankroll,
     int betUnit,
     std::function<int(double)> betSizing
