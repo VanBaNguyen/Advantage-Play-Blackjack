@@ -19,6 +19,5 @@ bool isSoft(const std::vector<int>& hand) {
         total += card;
         if (card == 1) aces++;
     }
-    // if treating an ace as 11 keeps you ≤21, it’s a soft hand
     return (aces > 0 && total + 10 <= 21);
 }

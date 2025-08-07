@@ -3,7 +3,6 @@
 #include <vector>
 #include <functional>
 
-// returns nothing, but increments the counters by reference
 void playGame(
     Shoe& shoe,
     int& playerWins,
@@ -17,7 +16,6 @@ void playGame(
     std::function<int(double)> betSizing
 );
 
-// A traced version that prints the details of a single round
 void playGameTraced(
     Shoe& shoe,
     double& bankroll,

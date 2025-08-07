@@ -5,14 +5,10 @@
 #include "Shoe.h"
 #include "Game.h"
 
-// Build example:
-// g++ -std=c++17 -Iinclude src/*.cpp -o trace_demo -pthread && ./trace_demo 5
-
 int main(int argc, char** argv) {
     int rounds = 5;
     if (argc > 1) rounds = std::max(1, std::atoi(argv[1]));
 
-    // Setup RNG and shoe
     auto seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 rng(seed);
     Shoe shoe(rng);

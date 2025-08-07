@@ -1,5 +1,5 @@
 #pragma once
-#include <functional> // <-- THIS LINE IS REQUIRED!
+#include <functional>
 
 void simulateGames(
     int gamesPerThread,

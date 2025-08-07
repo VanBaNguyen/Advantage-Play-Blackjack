@@ -4,7 +4,6 @@
 #include <random>
 #include <chrono>
 #include <functional>
-#include <iostream>
 
 void simulateGames(
     int gamesPerThread,
@@ -19,7 +18,6 @@ void simulateGames(
     std::function<int(double)> betSizing
 ) {
     double bankroll = 1000.0;
-    // seed per-thread RNG
     auto seed = std::chrono::system_clock::now().time_since_epoch().count()
                 + std::hash<std::thread::id>{}(std::this_thread::get_id());
     std::mt19937 rng(seed);

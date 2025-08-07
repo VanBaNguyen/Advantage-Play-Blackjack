@@ -1,6 +1,5 @@
 #pragma once
 
-// shared enums & constants
 enum Result { PLAYER_WIN, DEALER_WIN, DRAW };
 
 static constexpr int DECKS_IN_SHOE       = 8;

@@ -9,8 +9,8 @@ public:
     int draw();
     int getRunningCount() const;
     double getTrueCount() const;
-    size_t getRemainingCards() const; // for tracing/visibility
-    // Call at the start of each new round to reshuffle only between rounds
+    size_t getRemainingCards() const;
+    // Reshuffle between rounds if cut card reached
     void shuffleIfNeededForNewRound();
 private:
     void refill();
@@ -26,5 +26,5 @@ private:
     std::vector<int> deck;
     size_t nextCardIndex = 0;
     int runningCount = 0;
-    size_t cutCardIndex = 0; // position at which a new round should trigger a reshuffle
+    size_t cutCardIndex = 0;
 };
