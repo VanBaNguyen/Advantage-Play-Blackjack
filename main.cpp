@@ -11,20 +11,20 @@ g++ -std=c++17 -Iinclude src/Game.cpp src/Shoe.cpp src/HandEval.cpp src/Strategy
 
 
 int main() {
-    const int gamesPerSession   = 10000;
-    const int numSessions = 1000;
-    const double startingBankroll = 10000;
+    const int gamesPerSession   = 1000;
+    const int numSessions = 50000;
+    const double startingBankroll = 5000;
     const int betUnit = 25;
 
     // Configurable units-per-true-count. Return 0 to sit out.
     auto betSizing = [](double tc) {
         int itc = static_cast<int>(std::floor(tc));
-        if (itc <= 0) return 1;    // sit out at TC <= 0
-        if (itc == 1) return 1;    // TC 1 -> 1 unit
-        if (itc == 2) return 1;    // TC 2 -> 2 units
-        if (itc == 3) return 1;    // TC 3 -> 4 units
-        if (itc == 4) return 1;    // TC 4 -> 6 units
-        if (itc >= 5) return 1;    // TC 5+ -> 8 units (example)
+        if (itc <= 0) return 0;    // sit out at TC <= 0
+        if (itc == 1) return 1;
+        if (itc == 2) return 2;
+        if (itc == 3) return 4;
+        if (itc == 4) return 8;
+        if (itc >= 5) return 12;
         return 0;
     };
     // Monte Carlo sessions for EV and Risk of Ruin
@@ -52,12 +52,21 @@ int main() {
     double evPerSession = avgFinal - startingBankroll;
     double riskOfRuin = static_cast<double>(ruinCount) / numSessions;
 
-    std::cout << "Sessions: " << numSessions
-              << "\nGames per session: " << gamesPerSession
-              << "\nStarting bankroll: $" << startingBankroll
-              << "\nAverage final bankroll: $" << avgFinal
-              << "\nEV per session: $" << evPerSession
-              << "\nRisk of ruin: " << (riskOfRuin * 100.0) << "%" << std::endl;
+    if (riskOfRuin == 0) {
+        std::cout << "Sessions: " << numSessions
+        << "\nGames per session: " << gamesPerSession
+        << "\nStarting bankroll: $" << startingBankroll
+        << "\nAverage final bankroll: $" << avgFinal
+        << "\nEV per session: $" << evPerSession
+        << "\nRisk of ruin: ~ <0%" << std::endl;
+    } else{ 
+        std::cout << "Sessions: " << numSessions
+        << "\nGames per session: " << gamesPerSession
+        << "\nStarting bankroll: $" << startingBankroll
+        << "\nAverage final bankroll: $" << avgFinal
+        << "\nEV per session: $" << evPerSession
+        << "\nRisk of ruin: " << (riskOfRuin * 100.0) << "%" << std::endl;
+    }
 
     return 0;
 }
