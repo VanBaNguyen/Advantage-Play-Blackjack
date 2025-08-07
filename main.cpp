@@ -13,7 +13,7 @@ g++ -std=c++17 -Iinclude src/Game.cpp src/Shoe.cpp src/HandEval.cpp src/Strategy
 int main() {
     const int gamesPerSession   = 1000;
     const int numSessions = 50000;
-    const double startingBankroll = 5000;
+    const double startingBankroll = 500;
     const int betUnit = 25;
 
     // Configurable units-per-true-count. Return 0 to sit out.

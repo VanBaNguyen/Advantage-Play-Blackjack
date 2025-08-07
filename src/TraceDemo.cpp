@@ -7,7 +7,7 @@
 
 // keep:   g++ -std=c++17 -Iinclude src/Game.cpp src/Shoe.cpp src/HandEval.cpp src/Strategy.cpp src/Simulation.cpp src/TraceDemo.cpp -o trace_demo -pthread
 int main(int argc, char** argv) {
-    int rounds = 5;
+    int rounds = 500;
     if (argc > 1) rounds = std::max(1, std::atoi(argv[1]));
 
     auto seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     Shoe shoe(rng);
 
     double bankroll = 1000.0;
-    const int betUnit = 10;
+    const int betUnit = 25;
 
     auto betSizing = [](double tc) {
         int itc = static_cast<int>(std::floor(tc));
