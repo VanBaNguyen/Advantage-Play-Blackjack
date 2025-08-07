@@ -14,3 +14,13 @@ void simulateGames(
     int betUnit,
     std::function<int(double)> betSizing
 );
+
+// Run a single session of N games. Returns final bankroll and whether bankroll hit 0 during play.
+void simulateSingleSession(
+    int games,
+    double startingBankroll,
+    double& finalBankroll,
+    bool& ruined,
+    int betUnit,
+    std::function<int(double)> betSizing
+);

@@ -38,3 +38,26 @@ void simulateGames(
     doubles     = db;
     finalBankroll = bankroll;
 }
+
+void simulateSingleSession(
+    int games,
+    double startingBankroll,
+    double& finalBankroll,
+    bool& ruined,
+    int betUnit,
+    std::function<int(double)> betSizing
+) {
+    ruined = false;
+    double bankroll = startingBankroll;
+    auto seed = std::chrono::system_clock::now().time_since_epoch().count()
+                + std::hash<std::thread::id>{}(std::this_thread::get_id());
+    std::mt19937 rng(seed);
+    Shoe shoe(rng);
+
+    int pw=0, dw=0, dr=0, su=0, sp=0, db=0;
+    for (int i = 0; i < games; ++i) {
+        if (bankroll <= 0.0) { ruined = true; break; }
+        playGame(shoe, pw, dw, dr, su, sp, db, bankroll, betUnit, betSizing);
+    }
+    finalBankroll = bankroll;
+}
