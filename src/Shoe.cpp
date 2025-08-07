@@ -23,8 +23,8 @@ void Shoe::refill() {
 
 int Shoe::draw() {
     int card = deck[nextCardIndex++];
-    if (card >= 2 && card <= 6)       ++runningCount;
-    else if (card == 10 || card == 11) --runningCount;
+    if (card >= 2 && card <= 6)       ++runningCount;   // 2-6: +1
+    else if (card == 10 || card == 1) --runningCount;   // 10s and Aces: -1
     return card;
 }
 

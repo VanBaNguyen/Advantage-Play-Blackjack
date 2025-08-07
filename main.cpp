@@ -4,7 +4,7 @@
 #include <functional>
 #include "Simulation.h"
 
-//g++ -std=c++17 -Iinclude src/*.cpp main.cpp -o blackjack_sim -pthread
+//g++ -std=c++17 -Iinclude src/Game.cpp src/Shoe.cpp src/HandEval.cpp src/Strategy.cpp src/Simulation.cpp main.cpp -o blackjack_sim -pthread
 // int main() {
 //     const int totalGames    = 20;
 //     const int numThreads    = std::thread::hardware_concurrency() / 2;

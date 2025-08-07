@@ -33,8 +33,10 @@ void playGame(
 
     vector<vector<int>> hands;
     std::vector<bool> handDoubled; // track which split hand doubled
-    // split?
-    if (player[0]==player[1] && shouldSplit(player[0], dealerUp)) {
+    // split? consider deviations too (e.g., pair of 10s at high counts)
+    bool isPair = (player[0] == player[1]);
+    std::string splitDev = check_playing_deviations(player, dealerUp, trueCount);
+    if (isPair && (shouldSplit(player[0], dealerUp) || splitDev == "Split")) {
         hands.push_back({player[0], drawCard()});
         hands.push_back({player[1], drawCard()});
         handDoubled.push_back(false);
@@ -63,28 +65,45 @@ void playGame(
         return;
     }
 
-    // each hand: maybe double, maybe hit/stand
+    // each hand: decide via basic strategy + deviations
     for (size_t i = 0; i < hands.size(); ++i) {
         auto& h = hands[i];
-        bool didDouble = false;
-        if (h.size()==2 && shouldDoubleDown(h, dealerUp)) {
-            h.push_back(drawCard());
-            ++doubleCounter;
-            didDouble = true;
-            handDoubled[i] = true;
-        }
-        if (!didDouble) {
-            while (true) {
-                int val = computeHandValue(h);
-                bool soft = isSoft(h);
-                if (!soft) {
-                    if (val>=17 || (val>=13&&val<=16&&dealerUp<=6) ||
-                        (val==12&&dealerUp>=4&&dealerUp<=6))
-                        break;
-                } else {
-                    if (val>=19 || (val==18&&dealerUp<=8))
-                        break;
+        bool completed = false;
+        while (!completed) {
+            int val = computeHandValue(h);
+            if (val >= 21) break; // blackjack/bust
+
+            // Base move
+            std::string move = best_move_soft(h, dealerUp);
+            if (move.empty()) move = best_move_hard(h, dealerUp);
+
+            // Deviations by true count
+            std::string dev = check_playing_deviations(h, dealerUp, shoe.getTrueCount());
+            if (!dev.empty()) {
+                if (dev == "Stand") move = "S";
+                else if (dev == "Hit") move = "H";
+                else if (dev == "Double") move = "D";
+                else if (dev == "Split") {
+                    // Only relevant on initial hand; skip here
                 }
+            }
+
+            // Apply move
+            if (move == "S") {
+                break;
+            } else if (move == "D" || move == "Ds") {
+                if (h.size() == 2) {
+                    h.push_back(drawCard());
+                    ++doubleCounter;
+                    handDoubled[i] = true;
+                }
+                // Ds stands if cannot double; D hits if cannot double
+                if (move == "D" && h.size() != 3) {
+                    h.push_back(drawCard());
+                    continue;
+                }
+                completed = true; // doubled -> stop
+            } else { // "H"
                 h.push_back(drawCard());
             }
         }
@@ -179,29 +198,43 @@ void playGameTraced(
 
     for (size_t i = 0; i < hands.size(); ++i) {
         auto& h = hands[i];
-        bool didDouble = false;
-        if (h.size()==2 && shouldDoubleDown(h, dealerUp)) {
-            cout << "Hand " << (i+1) << ": Double" << endl;
-            h.push_back(drawCard());
-            didDouble = true;
-            handDoubled[i] = true;
-        }
-        if (!didDouble) {
-            while (true) {
-                int val = computeHandValue(h);
-                bool soft = isSoft(h);
-                if (!soft) {
-                    if (val>=17 || (val>=13&&val<=16&&dealerUp<=6) ||
-                        (val==12&&dealerUp>=4&&dealerUp<=6))
-                        break;
+        bool completed = false;
+        while (!completed) {
+            int val = computeHandValue(h);
+            if (val >= 21) break;
+
+            std::string move = best_move_soft(h, dealerUp);
+            if (move.empty()) move = best_move_hard(h, dealerUp);
+
+            std::string dev = check_playing_deviations(h, dealerUp, shoe.getTrueCount());
+            if (!dev.empty()) {
+                if (dev == "Stand") move = "S";
+                else if (dev == "Hit") move = "H";
+                else if (dev == "Double") move = "D";
+            }
+
+            if (move == "S") {
+                cout << "Hand " << (i+1) << ": Stand at " << computeHandValue(h) << (isSoft(h)?" (soft)":"") << endl;
+                break;
+            } else if (move == "D" || move == "Ds") {
+                if (h.size() == 2) {
+                    cout << "Hand " << (i+1) << ": Double" << endl;
+                    h.push_back(drawCard());
+                    handDoubled[i] = true;
+                    completed = true;
                 } else {
-                    if (val>=19 || (val==18&&dealerUp<=8))
+                    if (move == "Ds") {
+                        cout << "Hand " << (i+1) << ": Stand at " << computeHandValue(h) << (isSoft(h)?" (soft)":"") << endl;
                         break;
+                    } else {
+                        h.push_back(drawCard());
+                        cout << "Hand " << (i+1) << ": Hit -> total " << computeHandValue(h) << endl;
+                    }
                 }
+            } else {
                 h.push_back(drawCard());
                 cout << "Hand " << (i+1) << ": Hit -> total " << computeHandValue(h) << endl;
             }
-            cout << "Hand " << (i+1) << ": Stand at " << computeHandValue(h) << (isSoft(h)?" (soft)":"") << endl;
         }
     }
 
