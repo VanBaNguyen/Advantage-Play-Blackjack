@@ -19,8 +19,10 @@ void simulateGames(
     std::function<int(double)> betSizing
 ) {
     double bankroll = startingBankroll;
+    static std::atomic<uint64_t> uniq{0};
     auto seed = std::chrono::system_clock::now().time_since_epoch().count()
-                + std::hash<std::thread::id>{}(std::this_thread::get_id());
+                ^ (static_cast<uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id())) << 1)
+                ^ uniq.fetch_add(1, std::memory_order_relaxed);
     std::mt19937 rng(seed);
 
     int pw=0, dw=0, dr=0, su=0, sp=0, db=0;
@@ -49,8 +51,10 @@ void simulateSingleSession(
 ) {
     ruined = false;
     double bankroll = startingBankroll;
+    static std::atomic<uint64_t> uniq{0};
     auto seed = std::chrono::system_clock::now().time_since_epoch().count()
-                + std::hash<std::thread::id>{}(std::this_thread::get_id());
+                ^ (static_cast<uint64_t>(std::hash<std::thread::id>{}(std::this_thread::get_id())) << 1)
+                ^ uniq.fetch_add(1, std::memory_order_relaxed);
     std::mt19937 rng(seed);
     Shoe shoe(rng);
 

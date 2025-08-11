@@ -18,7 +18,7 @@ private:
     size_t totalSize() const;
     bool needsRefillForNewRound() const;
 
-    static constexpr int DECKS_IN_SHOE = 8;
+    static constexpr int DECKS_IN_SHOE = 6;
     static constexpr int CARDS_PER_DECK = 52;
     static constexpr double RESHUFFLE_THRESHOLD = 0.2;
 

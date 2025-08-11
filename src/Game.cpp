@@ -22,14 +22,9 @@ void playGame(
     double trueCount = shoe.getTrueCount();
     int unitsToBet = betSizing(trueCount);
     int bet = std::min(betUnit * unitsToBet, static_cast<int>(bankroll));
+    // If sitting out or cannot cover the bet, still play a full round with bet = 0 to consume cards realistically
     if (unitsToBet <= 0 || bet <= 0) {
-        // Sit out: consume a round without betting
-        auto drawCard = [&]() { return shoe.draw(); };
-        std::vector<int> player = { drawCard(), drawCard() };
-        std::vector<int> dealer = { drawCard(), drawCard() };
-        while (computeHandValue(player) < 17) player.push_back(drawCard());
-        while (computeHandValue(dealer) < 17) dealer.push_back(drawCard());
-        return;
+        bet = 0;
     }
 
     auto drawCard = [&]() { return shoe.draw(); };
@@ -41,14 +36,18 @@ void playGame(
 
     vector<vector<int>> hands;
     std::vector<bool> handDoubled; // track which split hand doubled
+    // Track total potential loss this round so we never risk more than bankroll
+    int totalPotentialLoss = bet;
     // split? consider deviations too (e.g., pair of 10s at high counts)
     bool isPair = (player[0] == player[1]);
     std::string splitDev = check_playing_deviations(player, dealerUp, trueCount);
-    if (isPair && (shouldSplit(player[0], dealerUp) || splitDev == "Split")) {
+    if (isPair && (shouldSplit(player[0], dealerUp) || splitDev == "Split")
+        && (totalPotentialLoss + bet) <= bankroll) {
         hands.push_back({player[0], drawCard()});
         hands.push_back({player[1], drawCard()});
         handDoubled.push_back(false);
         handDoubled.push_back(false);
+        totalPotentialLoss += bet; // second hand at same stake now at risk
         ++splitCounter;
     } else {
         hands.push_back(player);
@@ -56,16 +55,26 @@ void playGame(
     }
 
     int playerTotal = computeHandValue(player);
-    // blackjack check
-    if (player.size() == 2 && playerTotal == 21) {
-        ++playerWins;
-        bankroll += 1.5 * bet;
-        return;
+    bool playerNatural = (player.size() == 2 && playerTotal == 21);
+    bool dealerNatural = (dealer.size() == 2 && computeHandValue(dealer) == 21);
+    // Natural resolution with peek-equivalent handling
+    if (playerNatural || dealerNatural) {
+        if (playerNatural && dealerNatural) {
+            ++draws; // push on mutual blackjack
+            return;
+        } else if (playerNatural) {
+            ++playerWins;
+            bankroll += 1.5 * bet;
+            return;
+        } else { // dealerNatural only
+            ++dealerWins;
+            bankroll -= bet;
+            return;
+        }
     }
     // surrender?
     if ((playerTotal==16 && (dealerUp>=9)) ||
-        (playerTotal==15 && (dealerUp>=10)) ||
-        (playerTotal==17 && dealerUp==11)) {
+        (playerTotal==15 && (dealerUp>=10))) {
         ++surrenderCounter;
         ++dealerWins;
         // Normally, you lose half your bet on surrender:
@@ -100,17 +109,22 @@ void playGame(
             if (move == "S") {
                 break;
             } else if (move == "D" || move == "Ds") {
-                if (h.size() == 2) {
+                bool canDouble = (h.size() == 2) && ((totalPotentialLoss + bet) <= bankroll);
+                if (canDouble) {
                     h.push_back(drawCard());
                     ++doubleCounter;
                     handDoubled[i] = true;
+                    totalPotentialLoss += bet; // additional bet now at risk
+                    completed = true; // doubled -> stop
+                } else {
+                    if (move == "Ds") {
+                        // Stand instead when double not allowed
+                        break;
+                    } else { // move == "D" but cannot double -> Hit
+                        h.push_back(drawCard());
+                        continue;
+                    }
                 }
-                // Ds stands if cannot double; D hits if cannot double
-                if (move == "D" && h.size() != 3) {
-                    h.push_back(drawCard());
-                    continue;
-                }
-                completed = true; // doubled -> stop
             } else { // "H"
                 h.push_back(drawCard());
             }
